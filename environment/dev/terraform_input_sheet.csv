@@ -1,0 +1,85 @@
+﻿resource_type,resource_id,variable,value
+RG,RG1,name,VNET-RG
+RG,RG1,location,Central India
+vnet,vnet1,name,dev-vent-arjun-private
+vnet,vnet1,location,central India
+vnet,vnet1,resource_group_name,VNET-RG
+vnet,vnet1,address_space,"10.20.0.0/16,10.10.0.0/16"
+subnet,subnet1,name,private_subnet_frontend
+subnet,subnet1,resource_group_name,VNET-RG
+subnet,subnet1,virtual_network_name,dev-vent-arjun-private
+subnet,subnet1,address_prefixes,"10.20.3.0/24,10.10.10.0/24"
+subnet,subnet2,name,AzureBastionSubnet
+subnet,subnet2,resource_group_name,VNET-RG
+subnet,subnet2,virtual_network_name,dev-vent-arjun-private
+subnet,subnet2,address_prefixes,10.10.12.0/26
+subnet,subnet3,name,appgw_subnet
+subnet,subnet3,resource_group_name,VNET-RG
+subnet,subnet3,virtual_network_name,dev-vent-arjun-private
+subnet,subnet3,address_prefixes,10.20.4.0/24
+nsg,nsg1,name,dev-nsg
+nsg,nsg1,location,Central India
+nsg,nsg1,resource_group_name,VNET-RG
+nsg,nsg1,rule_name,SSH
+nsg,nsg1,priority,100
+nsg,nsg1,direction,Inbound
+nsg,nsg1,access,Allow
+nsg,nsg1,protocol,Tcp
+nsg,nsg1,source_port_range,*
+nsg,nsg1,destination_port_range,22
+nsg,nsg1,source_address_prefix,*
+nsg,nsg1,destination_address_prefix,*
+nic_card,nic1,subnet_name,private_subnet_frontend
+nic_card,nic1,name,dev-nic
+nic_card,nic1,location,central India
+nic_card,nic1,resource_group_name,VNET-RG
+nic_card,nic1,virtual_network_name,dev-vent-arjun-private
+nic_card,nic1,ip_name,internal
+nic_card,nic1,private_ip_address,Dynamic
+association,association1,nic_name,dev-nic
+association,association1,nsg_name,dev-nsg
+association,association1,resource_group_name,VNET-RG
+public_ip,public_ip1,name,Dev-PublicIP
+public_ip,public_ip1,resource_group_name,VNET-RG
+public_ip,public_ip1,location,Central India
+public_ip,public_ip1,allocation_method,Static
+public_ip,public_ip1,name1,LB_Public_IP
+bastion,bastion1,public_name,Dev-PublicIP
+bastion,bastion1,resource_group_name,VNET-RG
+bastion,bastion1,virtual_network_name,dev-vent-arjun-private
+bastion,bastion1,config_name,Bastionhost
+bastion,bastion1,location,Central India
+bastion,bastion1,name,Bastion_Consle_SSH
+vm,vm1,name,Dev-machine
+vm,vm1,resource_group_name,VNET-RG
+vm,vm1,location,Central India
+vm,vm1,size,Standard_D2s_v3
+vm,vm1,admin_username,adminuser
+vm,vm1,key_vault_name,dev-landing-kv-arjun
+vm,vm1,secret_name,vm-admin-password
+vm,vm1,disable_password_authentication,false
+vm,vm1,nic_name,dev-nic
+vm,vm1,caching,ReadWrite
+vm,vm1,storage_account_type,Standard_LRS
+vm,vm1,publisher,Canonical
+vm,vm1,offer,0001-com-ubuntu-server-jammy
+vm,vm1,sku,22_04-lts
+vm,vm1,version,latest
+key_vault,kv1,name,dev-landing-kv-arjun
+key_vault,kv1,location,Central India
+key_vault,kv1,resource_group_name,VNET-RG
+key_vault,kv1,secret_name,vm-admin-password
+key_vault,kv1,secret_value,Arjun!@#123
+nat_gateway,nat1,name,dev-nat-gateway
+nat_gateway,nat1,public_ip_name,NAT-PublicIP
+nat_gateway,nat1,location,Central India
+nat_gateway,nat1,resource_group_name,VNET-RG
+nat_gateway,nat1,subnet_name,private_subnet_frontend
+nat_gateway,nat1,virtual_network_name,dev-vent-arjun-private
+app_gateway,appgw1,name,dev-app-gateway
+app_gateway,appgw1,public_ip_name,AppGW-PublicIP
+app_gateway,appgw1,location,Central India
+app_gateway,appgw1,resource_group_name,VNET-RG
+app_gateway,appgw1,subnet_name,appgw_subnet
+app_gateway,appgw1,virtual_network_name,dev-vent-arjun-private
+app_gateway,appgw1,backend_nic_name,dev-nic
