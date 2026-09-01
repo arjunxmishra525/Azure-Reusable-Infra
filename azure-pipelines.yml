@@ -1,9 +1,12 @@
+# ==========================================================
+# AZURE DEVOPS TERRAFORM CI PIPELINE
+# ==========================================================
 
 trigger:
 - main
 
 # ==========================================================
-# SELF-HOSTED AGENT
+# SELF HOSTED AGENT
 # ==========================================================
 
 pool:
@@ -36,127 +39,33 @@ stages:
 
 # ==========================================================
 # STAGE 1
-# GENERATE TFVARS + TERRAFORM VALIDATION + PLAN
+# TERRAFORM VALIDATE
 # ==========================================================
 
-- stage: Terraform_Plan
+- stage: Terraform_Validate
 
-  displayName: 'Terraform Generate, Validate and Plan'
+  displayName: 'Terraform Validate'
 
   jobs:
 
-  - job: TerraformPlan
+  - job: TerraformValidate
 
-    displayName: 'Terraform Plan - Self Hosted Agent'
+    displayName: 'Terraform Validate'
 
     steps:
 
-
-    # ======================================================
-    # 1. CHECKOUT SOURCE CODE
-    # ======================================================
+    # ------------------------------------------------------
+    # Checkout
+    # ------------------------------------------------------
 
     - checkout: self
 
       displayName: 'Checkout Repository'
 
 
-    # ======================================================
-    # 2. VERIFY SELF-HOSTED AGENT
-    # ======================================================
-
-    - powershell: |
-
-        Write-Host ""
-        Write-Host "=========================================="
-        Write-Host " Azure DevOps Self-Hosted Agent"
-        Write-Host "=========================================="
-
-        Write-Host "Agent Name     : $(Agent.Name)"
-        Write-Host "Agent OS       : $(Agent.OS)"
-        Write-Host "Machine Name   : $(Agent.MachineName)"
-        Write-Host "Agent Version  : $(Agent.Version)"
-
-        Write-Host ""
-
-        if ("$(Agent.Name)" -ne "arjun_agent") {
-
-            Write-Error "Incorrect agent detected."
-
-            Write-Error "Expected Agent : arjun_agent"
-
-            Write-Error "Actual Agent   : $(Agent.Name)"
-
-            exit 1
-        }
-
-        Write-Host "SUCCESS: Correct self-hosted agent detected."
-
-      displayName: 'Verify Self-Hosted Agent'
-
-
-    # ======================================================
-    # 3. CHECK TERRAFORM INSTALLATION
-    # ======================================================
-
-    - powershell: |
-
-        Write-Host ""
-        Write-Host "=========================================="
-        Write-Host " Terraform Version"
-        Write-Host "=========================================="
-
-        terraform version
-
-        if ($LASTEXITCODE -ne 0) {
-
-            Write-Error "Terraform is not installed or not available in PATH."
-
-            exit $LASTEXITCODE
-        }
-
-      displayName: 'Check Terraform Installation'
-
-
-    # ======================================================
-    # 4. VALIDATE REQUIRED FILES
-    # ======================================================
-
-    - powershell: |
-
-        Write-Host ""
-        Write-Host "=========================================="
-        Write-Host " Validate Required Files"
-        Write-Host "=========================================="
-
-        $files = @(
-            "$(CSV_FILE)",
-            "$(TFVARS_SCRIPT)"
-        )
-
-        foreach ($file in $files) {
-
-            Write-Host "Checking: $file"
-
-            if (-not (Test-Path -LiteralPath $file)) {
-
-                Write-Error "Required file not found: $file"
-
-                exit 1
-            }
-
-            Write-Host "Found: $file"
-        }
-
-        Write-Host ""
-        Write-Host "All required files are available."
-
-      displayName: 'Validate Required Files'
-
-
-    # ======================================================
-    # 5. GENERATE TERRAFORM.TFVARS
-    # ======================================================
+    # ------------------------------------------------------
+    # Generate TFVars
+    # ------------------------------------------------------
 
     - task: PowerShell@2
 
@@ -175,63 +84,15 @@ stages:
         pwsh: false
 
 
-    # ======================================================
-    # 6. VERIFY GENERATED TFVARS
-    # ======================================================
-
-    - powershell: |
-
-        Write-Host ""
-        Write-Host "=========================================="
-        Write-Host " Verify Generated terraform.tfvars"
-        Write-Host "=========================================="
-
-        if (-not (Test-Path -LiteralPath "$(TFVARS_FILE)")) {
-
-            Write-Error "terraform.tfvars was not generated."
-
-            exit 1
-        }
-
-        $fileInfo = Get-Item "$(TFVARS_FILE)"
-
-        Write-Host "File      : $($fileInfo.FullName)"
-        Write-Host "Size      : $($fileInfo.Length) bytes"
-        Write-Host "Created   : $($fileInfo.CreationTime)"
-        Write-Host ""
-
-        if ($fileInfo.Length -eq 0) {
-
-            Write-Error "Generated terraform.tfvars is empty."
-
-            exit 1
-        }
-
-        Write-Host "terraform.tfvars generated successfully."
-
-      displayName: 'Verify Generated TFVars'
-
-
-    # ======================================================
-    # 7. TERRAFORM FORMAT
-    # ======================================================
-    # IMPORTANT:
-    # Do NOT use -check here.
-    #
-    # terraform.tfvars is generated dynamically by
-    # tfvars-generate.ps1.
-    #
-    # First format the generated file.
-    # ======================================================
+    # ------------------------------------------------------
+    # Terraform Format
+    # ------------------------------------------------------
 
     - powershell: |
 
         Set-Location "$(TF_WORKING_DIR)"
 
-        Write-Host ""
-        Write-Host "=========================================="
-        Write-Host " Terraform Format"
-        Write-Host "=========================================="
+        Write-Host "Running Terraform Format..."
 
         terraform fmt -recursive
 
@@ -242,52 +103,20 @@ stages:
             exit $LASTEXITCODE
         }
 
-        Write-Host ""
-        Write-Host "Terraform formatting completed successfully."
+        Write-Host "Terraform formatting completed."
 
-      displayName: 'Format Terraform Files'
-
-
-    # ======================================================
-    # 8. TERRAFORM FORMAT VALIDATION
-    # ======================================================
-
-    - powershell: |
-
-        Set-Location "$(TF_WORKING_DIR)"
-
-        Write-Host ""
-        Write-Host "=========================================="
-        Write-Host " Terraform Format Validation"
-        Write-Host "=========================================="
-
-        terraform fmt -check -recursive
-
-        if ($LASTEXITCODE -ne 0) {
-
-            Write-Error "Terraform formatting validation failed."
-
-            exit $LASTEXITCODE
-        }
-
-        Write-Host ""
-        Write-Host "Terraform formatting validation passed."
-
-      displayName: 'Terraform Format Check'
+      displayName: 'Terraform Format'
 
 
-    # ======================================================
-    # 9. TERRAFORM INIT
-    # ======================================================
+    # ------------------------------------------------------
+    # Terraform Init
+    # ------------------------------------------------------
 
     - powershell: |
 
         Set-Location "$(TF_WORKING_DIR)"
 
-        Write-Host ""
-        Write-Host "=========================================="
-        Write-Host " Terraform Init"
-        Write-Host "=========================================="
+        Write-Host "Running Terraform Init..."
 
         terraform init `
           -backend-config="backend.conf" `
@@ -301,24 +130,20 @@ stages:
             exit $LASTEXITCODE
         }
 
-        Write-Host ""
-        Write-Host "Terraform initialization completed successfully."
+        Write-Host "Terraform Init successful."
 
       displayName: 'Terraform Init'
 
 
-    # ======================================================
-    # 10. TERRAFORM VALIDATE
-    # ======================================================
+    # ------------------------------------------------------
+    # Terraform Validate
+    # ------------------------------------------------------
 
     - powershell: |
 
         Set-Location "$(TF_WORKING_DIR)"
 
-        Write-Host ""
-        Write-Host "=========================================="
-        Write-Host " Terraform Validate"
-        Write-Host "=========================================="
+        Write-Host "Running Terraform Validate..."
 
         terraform validate -no-color
 
@@ -329,21 +154,171 @@ stages:
             exit $LASTEXITCODE
         }
 
-        Write-Host ""
-        Write-Host "Terraform validation completed successfully."
+        Write-Host "Terraform validation successful."
 
       displayName: 'Terraform Validate'
 
 
-    # ======================================================
-    # 11. TERRAFORM PLAN
-    # ======================================================
+# ==========================================================
+# STAGE 2
+# TFSEC SECURITY SCAN
+# ==========================================================
+
+- stage: Tfsec_Security
+
+  displayName: 'tfsec Security Scan'
+
+  dependsOn: Terraform_Validate
+
+  condition: succeeded()
+
+  jobs:
+
+  - job: TfsecSecurity
+
+    displayName: 'tfsec Security Scan'
+
+    steps:
+
+    # ------------------------------------------------------
+    # Checkout
+    # ------------------------------------------------------
+
+    - checkout: self
+
+      displayName: 'Checkout Repository'
+
+
+    # ------------------------------------------------------
+    # Verify tfsec
+    # ------------------------------------------------------
+
+    - powershell: |
+
+        Write-Host "=========================================="
+        Write-Host " tfsec Security Scan"
+        Write-Host "=========================================="
+
+        tfsec --version
+
+        if ($LASTEXITCODE -ne 0) {
+
+            Write-Error "tfsec is not installed on the self-hosted agent."
+
+            exit $LASTEXITCODE
+        }
+
+      displayName: 'Check tfsec'
+
+
+    # ------------------------------------------------------
+    # Run tfsec
+    # ------------------------------------------------------
 
     - powershell: |
 
         Set-Location "$(TF_WORKING_DIR)"
 
-        Write-Host ""
+        Write-Host "Running tfsec security scan..."
+
+        tfsec . --format default
+
+        if ($LASTEXITCODE -ne 0) {
+
+            Write-Error "tfsec security scan failed."
+
+            exit $LASTEXITCODE
+        }
+
+        Write-Host "tfsec security scan passed."
+
+      displayName: 'tfsec Security Scan'
+
+
+# ==========================================================
+# STAGE 3
+# TERRAFORM PLAN
+# ==========================================================
+
+- stage: Terraform_Plan
+
+  displayName: 'Terraform Plan'
+
+  dependsOn: Tfsec_Security
+
+  condition: succeeded()
+
+  jobs:
+
+  - job: TerraformPlan
+
+    displayName: 'Terraform Plan'
+
+    steps:
+
+    # ------------------------------------------------------
+    # Checkout
+    # ------------------------------------------------------
+
+    - checkout: self
+
+      displayName: 'Checkout Repository'
+
+
+    # ------------------------------------------------------
+    # Generate TFVars
+    # ------------------------------------------------------
+
+    - task: PowerShell@2
+
+      displayName: 'Generate terraform.tfvars'
+
+      inputs:
+
+        targetType: filePath
+
+        filePath: '$(TFVARS_SCRIPT)'
+
+        arguments: >
+          -CsvPath "$(CSV_FILE)"
+          -OutputPath "$(TFVARS_FILE)"
+
+        pwsh: false
+
+
+    # ------------------------------------------------------
+    # Terraform Init
+    # ------------------------------------------------------
+
+    - powershell: |
+
+        Set-Location "$(TF_WORKING_DIR)"
+
+        Write-Host "Running Terraform Init..."
+
+        terraform init `
+          -backend-config="backend.conf" `
+          -input=false `
+          -no-color
+
+        if ($LASTEXITCODE -ne 0) {
+
+            Write-Error "Terraform init failed."
+
+            exit $LASTEXITCODE
+        }
+
+      displayName: 'Terraform Init'
+
+
+    # ------------------------------------------------------
+    # Terraform Plan
+    # ------------------------------------------------------
+
+    - powershell: |
+
+        Set-Location "$(TF_WORKING_DIR)"
+
         Write-Host "=========================================="
         Write-Host " Terraform Plan"
         Write-Host "=========================================="
@@ -360,17 +335,14 @@ stages:
             exit $LASTEXITCODE
         }
 
-        Write-Host ""
-        Write-Host "=========================================="
-        Write-Host " Terraform Plan Successful"
-        Write-Host "=========================================="
+        Write-Host "Terraform Plan completed successfully."
 
       displayName: 'Terraform Plan'
 
 
-    # ======================================================
-    # 12. PUBLISH TERRAFORM PLAN
-    # ======================================================
+    # ------------------------------------------------------
+    # Publish Plan
+    # ------------------------------------------------------
 
     - task: PublishPipelineArtifact@1
 
@@ -383,25 +355,3 @@ stages:
         artifact: 'terraform-plan'
 
         publishLocation: 'pipeline'
-
-
-    # ======================================================
-    # 13. PUBLISH GENERATED TFVARS
-    # ======================================================
-    # NOTE:
-    # Only publish this if terraform.tfvars does NOT contain
-    # secrets/passwords.
-    # ======================================================
-
-    - task: PublishPipelineArtifact@1
-
-      displayName: 'Publish Generated TFVars'
-
-      inputs:
-
-        targetPath: '$(TFVARS_FILE)'
-
-        artifact: 'terraform-tfvars'
-
-        publishLocation: 'pipeline'
-
