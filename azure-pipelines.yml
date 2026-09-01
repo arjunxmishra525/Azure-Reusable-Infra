@@ -11,4 +11,23 @@ pool:
   
 stages:
   - Tfvars_Generate
-   
+           
+
+
+- task: TerraformInstaller@1
+     inputs:
+       terraformVersion: 'latest'
+
+- task: TerraformTask@5
+   inputs:
+     provider: 'azurerm'
+     command: 'init'
+     backendServiceArm: 'Arjun-Github-Action'
+
+- task: TerraformTask@5
+  inputs:
+    provider: 'azurerm'
+    command: 'custom'
+    outputTo: 'console'
+    customCommand: 'terraform fmt'
+    environmentServiceNameAzureRM: 'Arjun-Github-Action'
