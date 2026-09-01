@@ -1,33 +1,203 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
 - main
 
 pool:
- name: arjun
-  
+  name: arjun
+  demands:
+  - Agent.Name -equals arjun_agent
+
+variables:
+
+  TF_WORKING_DIR: '$(Build.SourcesDirectory)\environment\dev'
+
+  CSV_FILE: '$(Build.SourcesDirectory)\environment\dev\terraform_input_sheet.csv'
+
+  TFVARS_FILE: '$(Build.SourcesDirectory)\environment\dev\terraform.tfvars'
+
+  TFVARS_SCRIPT: '$(Build.SourcesDirectory)\environment\dev\tfvars-generate.ps1'
+
+
 stages:
-  - Tfvars_Generate
-           
+
+# ==========================================================
+# STAGE 1 - GENERATE TFVARS
+# ==========================================================
+
+- stage: Generate_TFVars
+
+  displayName: 'Generate Terraform TFVars'
+
+  jobs:
+
+  - job: GenerateTFVars
+
+    displayName: 'Generate terraform.tfvars'
+
+    steps:
+
+    # ------------------------------------------------------
+    # Checkout
+    # ------------------------------------------------------
+
+    - checkout: self
+
+      displayName: 'Checkout Repository'
 
 
-- task: TerraformInstaller@1
-     inputs:
-       terraformVersion: 'latest'
+    # ------------------------------------------------------
+    # Verify Agent
+    # ------------------------------------------------------
 
-- task: TerraformTask@5
-   inputs:
-     provider: 'azurerm'
-     command: 'init'
-     backendServiceArm: 'Arjun-Github-Action'
+    - powershell: |
 
-- task: TerraformTask@5
-  inputs:
-    provider: 'azurerm'
-    command: 'custom'
-    outputTo: 'console'
-    customCommand: 'terraform fmt'
-    environmentServiceNameAzureRM: 'Arjun-Github-Action'
+        Write-Host "=========================================="
+        Write-Host " Azure DevOps Agent Information"
+        Write-Host "=========================================="
+
+        Write-Host "Agent Name : $(Agent.Name)"
+        Write-Host "Agent OS   : $(Agent.OS)"
+        Write-Host "Machine    : $(Agent.MachineName)"
+
+        if ("$(Agent.Name)" -ne "arjun_agent") {
+
+            Write-Error "Incorrect agent detected."
+
+            exit 1
+        }
+
+        Write-Host "Correct self-hosted agent detected."
+
+      displayName: 'Verify Self-Hosted Agent'
+
+
+    # ------------------------------------------------------
+    # Verify Files
+    # ------------------------------------------------------
+
+    - powershell: |
+
+        $files = @(
+            "$(CSV_FILE)",
+            "$(TFVARS_SCRIPT)"
+        )
+
+        foreach ($file in $files) {
+
+            if (-not (Test-Path -LiteralPath $file)) {
+
+                Write-Error "Required file not found: $file"
+
+                exit 1
+            }
+
+            Write-Host "Found: $file"
+        }
+
+      displayName: 'Validate Required Files'
+
+
+    # ------------------------------------------------------
+    # Generate TFVars
+    # ------------------------------------------------------
+
+    - task: PowerShell@2
+
+      displayName: 'Generate terraform.tfvars'
+
+      inputs:
+
+        targetType: filePath
+
+        filePath: '$(TFVARS_SCRIPT)'
+
+        arguments: >
+          -CsvPath "$(CSV_FILE)"
+          -OutputPath "$(TFVARS_FILE)"
+
+        pwsh: false
+
+
+    # ------------------------------------------------------
+    # Terraform Format
+    # ------------------------------------------------------
+
+    - powershell: |
+
+        Set-Location "$(TF_WORKING_DIR)"
+
+        terraform fmt -check -recursive
+
+        if ($LASTEXITCODE -ne 0) {
+
+            Write-Error "Terraform formatting validation failed."
+
+            exit $LASTEXITCODE
+        }
+
+      displayName: 'Terraform Format Check'
+
+
+    # ------------------------------------------------------
+    # Terraform Init
+    # ------------------------------------------------------
+
+    - powershell: |
+
+        Set-Location "$(TF_WORKING_DIR)"
+
+        terraform init `
+          -backend-config="backend.conf" `
+          -input=false
+
+        if ($LASTEXITCODE -ne 0) {
+
+            Write-Error "Terraform init failed."
+
+            exit $LASTEXITCODE
+        }
+
+      displayName: 'Terraform Init'
+
+
+    # ------------------------------------------------------
+    # Terraform Validate
+    # ------------------------------------------------------
+
+    - powershell: |
+
+        Set-Location "$(TF_WORKING_DIR)"
+
+        terraform validate
+
+        if ($LASTEXITCODE -ne 0) {
+
+            Write-Error "Terraform validation failed."
+
+            exit $LASTEXITCODE
+        }
+
+      displayName: 'Terraform Validate'
+
+
+    # ------------------------------------------------------
+    # Terraform Plan
+    # ------------------------------------------------------
+
+    - powershell: |
+
+        Set-Location "$(TF_WORKING_DIR)"
+
+        terraform plan `
+          -input=false `
+          -out=tfplan
+
+        if ($LASTEXITCODE -ne 0) {
+
+            Write-Error "Terraform plan failed."
+
+            exit $LASTEXITCODE
+        }
+
+        Write-Host "Terraform plan completed successfully."
+
+      displayName: 'Terraform Plan'
