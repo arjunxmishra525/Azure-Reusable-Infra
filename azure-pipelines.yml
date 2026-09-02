@@ -2,14 +2,17 @@
 # AZURE DEVOPS TERRAFORM CI PIPELINE
 # ==========================================================
 
-trigger: none
+trigger:
+- main
+
 
 # ==========================================================
-# SELF HOSTED AGENT
+# MICROSOFT HOSTED AGENT
 # ==========================================================
 
 pool:
   vmImage: 'ubuntu-latest'
+
 
 # ==========================================================
 # VARIABLES
@@ -17,13 +20,14 @@ pool:
 
 variables:
 
-  TF_WORKING_DIR: '$(Build.SourcesDirectory)\environment\dev'
+  # Linux (Ubuntu) ke liye forward slashes (/) use kiye gaye hain
+  TF_WORKING_DIR: '$(Build.SourcesDirectory)/environment/dev'
 
-  CSV_FILE: '$(Build.SourcesDirectory)\environment\dev\terraform_input_sheet.csv'
+  CSV_FILE: '$(Build.SourcesDirectory)/environment/dev/terraform_input_sheet.csv'
 
-  TFVARS_FILE: '$(Build.SourcesDirectory)\environment\dev\terraform.tfvars'
+  TFVARS_FILE: '$(Build.SourcesDirectory)/environment/dev/terraform.tfvars'
 
-  TFVARS_SCRIPT: '$(Build.SourcesDirectory)\environment\dev\tfvars-generate.ps1'
+  TFVARS_SCRIPT: '$(Build.SourcesDirectory)/environment/dev/tfvars-generate.ps1'
 
   # TELEGRAM BOT VARIABLES
   BOT_TOKEN: '8883973582:AAHm94WuwWyhR1Gg12o99y7RXEjk9gDmneo'
@@ -81,7 +85,8 @@ stages:
           -CsvPath "$(CSV_FILE)"
           -OutputPath "$(TFVARS_FILE)"
 
-        pwsh: false
+        # Ubuntu ke liye ise true karna zaroori hai
+        pwsh: true
 
 
     # ------------------------------------------------------
@@ -211,7 +216,7 @@ stages:
           -CsvPath "$(CSV_FILE)"
           -OutputPath "$(TFVARS_FILE)"
 
-        pwsh: false
+        pwsh: true
 
 
     # ------------------------------------------------------
@@ -268,6 +273,13 @@ stages:
 
       displayName: 'Terraform Validate'
 
+    # ------------------------------------------------------
+    # INSTALL TFSEC (Added for Ubuntu Agent)
+    # ------------------------------------------------------
+    
+    - bash: |
+        curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+      displayName: 'Install tfsec on Ubuntu'
 
     # ------------------------------------------------------
     # VERIFY TFSEC
@@ -283,7 +295,7 @@ stages:
 
         if ($LASTEXITCODE -ne 0) {
 
-            Write-Error "tfsec is not installed on the self-hosted agent."
+            Write-Error "tfsec is not working."
 
             exit $LASTEXITCODE
         }
@@ -365,7 +377,7 @@ stages:
           -CsvPath "$(CSV_FILE)"
           -OutputPath "$(TFVARS_FILE)"
 
-        pwsh: false
+        pwsh: true
 
 
     # ------------------------------------------------------
@@ -456,7 +468,7 @@ stages:
 
       inputs:
 
-        targetPath: '$(TF_WORKING_DIR)\tfplan'
+        targetPath: '$(TF_WORKING_DIR)/tfplan'
 
         artifact: 'terraform-plan'
 
@@ -472,7 +484,6 @@ stages:
   
   displayName: 'Notifications'
   
-  # 'always()' ensure karta hai ki ye stage hamesha chalega, chahe upar wali stages fail hi kyun na ho jayein.
   condition: always()
   
   dependsOn:
@@ -500,7 +511,6 @@ stages:
       
       displayName: 'Telegram Alert - Success'
       
-      # Ye task tabhi chalega jab teeno stages (Build, Test, Plan) successfully paas ho jayein
       condition: and(succeeded('Build'), succeeded('Test'), succeeded('Plan'))
 
     # ------------------------------------------------------
@@ -516,5 +526,4 @@ stages:
       
       displayName: 'Telegram Alert - Failed'
       
-      # Ye task tabhi chalega agar kisi bhi ek stage (Build, Test, ya Plan) mein error aata hai
       condition: or(failed('Build'), failed('Test'), failed('Plan'))
