@@ -41,485 +41,232 @@ variables:
 
 stages:
 
-
 # ==========================================================
-# STAGE 1
-# BUILD
+# STAGE 1: BUILD
 # ==========================================================
 
 - stage: Build
-
   displayName: 'Build'
-
   jobs:
-
   - job: TerraformBuild
-
     displayName: 'Terraform Build'
-
     steps:
 
-    # ------------------------------------------------------
-    # CHECKOUT
-    # ------------------------------------------------------
-
     - checkout: self
-
       displayName: 'Checkout Repository'
 
-
-    # ------------------------------------------------------
-    # GENERATE TFVARS
-    # ------------------------------------------------------
-
     - task: PowerShell@2
-
       displayName: 'Generate terraform.tfvars'
-
       inputs:
-
         targetType: filePath
-
         filePath: '$(TFVARS_SCRIPT)'
-
         arguments: >
           -CsvPath "$(CSV_FILE)"
           -OutputPath "$(TFVARS_FILE)"
-
         pwsh: false
 
-
-    # ------------------------------------------------------
-    # VERIFY TFVARS
-    # ------------------------------------------------------
-
     - powershell: |
-
         Set-Location "$(TF_WORKING_DIR)"
-
-        Write-Host "=========================================="
-        Write-Host " Generated Terraform TFVARS"
-        Write-Host "=========================================="
-
         if (-not (Test-Path "$(TFVARS_FILE)")) {
-
             Write-Error "terraform.tfvars was not generated."
-
             exit 1
         }
-
         Write-Host "terraform.tfvars generated successfully."
-
       displayName: 'Verify terraform.tfvars'
 
-
-    # ------------------------------------------------------
-    # TERRAFORM FORMAT
-    # ------------------------------------------------------
-
     - powershell: |
-
         Set-Location "$(TF_WORKING_DIR)"
-
-        Write-Host "=========================================="
-        Write-Host " Terraform Format"
-        Write-Host "=========================================="
-
         terraform fmt -recursive
-
         if ($LASTEXITCODE -ne 0) {
-
             Write-Error "Terraform formatting failed."
-
             exit $LASTEXITCODE
         }
-
-        Write-Host "Terraform formatting completed successfully."
-
       displayName: 'Terraform Format'
 
-
-    # ------------------------------------------------------
-    # TERRAFORM INIT
-    # ------------------------------------------------------
-
     - powershell: |
-
         Set-Location "$(TF_WORKING_DIR)"
-
-        Write-Host "=========================================="
-        Write-Host " Terraform Init"
-        Write-Host "=========================================="
-
         terraform init `
           -backend-config="backend.conf" `
           -input=false `
           -no-color
-
         if ($LASTEXITCODE -ne 0) {
-
             Write-Error "Terraform init failed."
-
             exit $LASTEXITCODE
         }
-
-        Write-Host "Terraform Init completed successfully."
-
       displayName: 'Terraform Init'
+
+    # ------------------------------------------------------
+    # BUILD NOTIFICATIONS
+    # ------------------------------------------------------
+    - bash: |
+        MESSAGE="✅ <b>BUILD Stage Success!</b>%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🔢 <b>View Run:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Run $(Build.BuildNumber)</a>"
+        curl -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" -d chat_id="$(CHAT_ID)" -d text="$MESSAGE" -d parse_mode="HTML" -d disable_web_page_preview="true"
+      displayName: 'Alert - Build Success'
+      condition: succeeded()
+
+    - bash: |
+        MESSAGE="❌ <b>BUILD Stage Failed!</b>%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🚨 <b>Check Logs:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Click Here</a>"
+        curl -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" -d chat_id="$(CHAT_ID)" -d text="$MESSAGE" -d parse_mode="HTML" -d disable_web_page_preview="true"
+      displayName: 'Alert - Build Failed'
+      condition: failed()
 
 
 # ==========================================================
-# STAGE 2
-# TEST
+# STAGE 2: TEST
 # ==========================================================
 
 - stage: Test
-
   displayName: 'Test'
-
   dependsOn: Build
-
   condition: succeeded()
-
   jobs:
-
   - job: TerraformTest
-
     displayName: 'Terraform Test'
-
     steps:
 
-    # ------------------------------------------------------
-    # CHECKOUT
-    # ------------------------------------------------------
-
     - checkout: self
-
       displayName: 'Checkout Repository'
 
-
-    # ------------------------------------------------------
-    # GENERATE TFVARS
-    # ------------------------------------------------------
-
     - task: PowerShell@2
-
       displayName: 'Generate terraform.tfvars'
-
       inputs:
-
         targetType: filePath
-
         filePath: '$(TFVARS_SCRIPT)'
-
         arguments: >
           -CsvPath "$(CSV_FILE)"
           -OutputPath "$(TFVARS_FILE)"
-
         pwsh: false
 
-
-    # ------------------------------------------------------
-    # TERRAFORM INIT
-    # ------------------------------------------------------
-
     - powershell: |
-
         Set-Location "$(TF_WORKING_DIR)"
-
-        Write-Host "=========================================="
-        Write-Host " Terraform Init"
-        Write-Host "=========================================="
-
         terraform init `
           -backend-config="backend.conf" `
           -input=false `
           -no-color
-
         if ($LASTEXITCODE -ne 0) {
-
             Write-Error "Terraform init failed."
-
             exit $LASTEXITCODE
         }
-
-        Write-Host "Terraform Init successful."
-
       displayName: 'Terraform Init'
 
-
-    # ------------------------------------------------------
-    # TERRAFORM VALIDATE
-    # ------------------------------------------------------
-
     - powershell: |
-
         Set-Location "$(TF_WORKING_DIR)"
-
-        Write-Host "=========================================="
-        Write-Host " Terraform Validate"
-        Write-Host "=========================================="
-
         terraform validate -no-color
-
         if ($LASTEXITCODE -ne 0) {
-
             Write-Error "Terraform validation failed."
-
             exit $LASTEXITCODE
         }
-
-        Write-Host "Terraform validation successful."
-
       displayName: 'Terraform Validate'
 
-
-    # ------------------------------------------------------
-    # VERIFY TFSEC
-    # ------------------------------------------------------
-
     - powershell: |
-
-        Write-Host "=========================================="
-        Write-Host " tfsec Version"
-        Write-Host "=========================================="
-
         tfsec --version
-
         if ($LASTEXITCODE -ne 0) {
-
             Write-Error "tfsec is not installed on the self-hosted agent."
-
             exit $LASTEXITCODE
         }
-
       displayName: 'Check tfsec'
 
-
-    # ------------------------------------------------------
-    # TFSEC SECURITY SCAN
-    # ------------------------------------------------------
-
     - powershell: |
-
         Set-Location "$(TF_WORKING_DIR)"
-
-        Write-Host "=========================================="
-        Write-Host " tfsec Security Scan"
-        Write-Host "=========================================="
-
         tfsec . --format default
-
         if ($LASTEXITCODE -ne 0) {
-
             Write-Error "tfsec security scan failed."
-
             exit $LASTEXITCODE
         }
-
-        Write-Host "tfsec security scan passed successfully."
-
       displayName: 'tfsec Security Scan'
+
+    # ------------------------------------------------------
+    # TEST NOTIFICATIONS
+    # ------------------------------------------------------
+    - bash: |
+        MESSAGE="✅ <b>TEST Stage Success!</b> (Validation & Security Scan Passed)%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🔢 <b>View Run:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Run $(Build.BuildNumber)</a>"
+        curl -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" -d chat_id="$(CHAT_ID)" -d text="$MESSAGE" -d parse_mode="HTML" -d disable_web_page_preview="true"
+      displayName: 'Alert - Test Success'
+      condition: succeeded()
+
+    - bash: |
+        MESSAGE="❌ <b>TEST Stage Failed!</b>%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🚨 <b>Check Logs:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Click Here</a>"
+        curl -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" -d chat_id="$(CHAT_ID)" -d text="$MESSAGE" -d parse_mode="HTML" -d disable_web_page_preview="true"
+      displayName: 'Alert - Test Failed'
+      condition: failed()
 
 
 # ==========================================================
-# STAGE 3
-# PLAN
+# STAGE 3: PLAN
 # ==========================================================
 
 - stage: Plan
-
   displayName: 'Terraform Plan'
-
   dependsOn: Test
-
   condition: succeeded()
-
   jobs:
-
   - job: TerraformPlan
-
     displayName: 'Terraform Plan'
-
     steps:
 
-    # ------------------------------------------------------
-    # CHECKOUT
-    # ------------------------------------------------------
-
     - checkout: self
-
       displayName: 'Checkout Repository'
 
-
-    # ------------------------------------------------------
-    # GENERATE TFVARS
-    # ------------------------------------------------------
-
     - task: PowerShell@2
-
       displayName: 'Generate terraform.tfvars'
-
       inputs:
-
         targetType: filePath
-
         filePath: '$(TFVARS_SCRIPT)'
-
         arguments: >
           -CsvPath "$(CSV_FILE)"
           -OutputPath "$(TFVARS_FILE)"
-
         pwsh: false
 
-
-    # ------------------------------------------------------
-    # VERIFY TFVARS
-    # ------------------------------------------------------
-
     - powershell: |
-
         Set-Location "$(TF_WORKING_DIR)"
-
         if (-not (Test-Path "$(TFVARS_FILE)")) {
-
             Write-Error "terraform.tfvars not found."
-
             exit 1
         }
-
-        Write-Host "terraform.tfvars is available."
-
       displayName: 'Verify terraform.tfvars'
 
-
-    # ------------------------------------------------------
-    # TERRAFORM INIT
-    # ------------------------------------------------------
-
     - powershell: |
-
         Set-Location "$(TF_WORKING_DIR)"
-
-        Write-Host "=========================================="
-        Write-Host " Terraform Init"
-        Write-Host "=========================================="
-
         terraform init `
           -backend-config="backend.conf" `
           -input=false `
           -no-color
-
         if ($LASTEXITCODE -ne 0) {
-
             Write-Error "Terraform init failed."
-
             exit $LASTEXITCODE
         }
-
-        Write-Host "Terraform Init successful."
-
       displayName: 'Terraform Init'
 
-
-    # ------------------------------------------------------
-    # TERRAFORM PLAN
-    # ------------------------------------------------------
-
     - powershell: |
-
         Set-Location "$(TF_WORKING_DIR)"
-
-        Write-Host "=========================================="
-        Write-Host " Terraform Plan"
-        Write-Host "=========================================="
-
         terraform plan `
           -input=false `
           -out=tfplan `
           -no-color
-
         if ($LASTEXITCODE -ne 0) {
-
             Write-Error "Terraform plan failed."
-
             exit $LASTEXITCODE
         }
-
-        Write-Host "Terraform Plan completed successfully."
-
       displayName: 'Terraform Plan'
 
-
-    # ------------------------------------------------------
-    # PUBLISH TERRAFORM PLAN
-    # ------------------------------------------------------
-
     - task: PublishPipelineArtifact@1
-
       displayName: 'Publish Terraform Plan'
-
       inputs:
-
         targetPath: '$(TF_WORKING_DIR)\tfplan'
-
         artifact: 'terraform-plan'
-
         publishLocation: 'pipeline'
 
-
-# ==========================================================
-# STAGE 4
-# TELEGRAM NOTIFICATION
-# ==========================================================
-
-- stage: Notify
-  
-  displayName: 'Notifications'
-  
-  # 'always()' ensure karta hai ki ye stage hamesha chalega, chahe upar wali stages fail hi kyun na ho jayein.
-  condition: always()
-  
-  dependsOn:
-  - Build
-  - Test
-  - Plan
-
-  jobs:
-  - job: TelegramAlert
-    
-    displayName: 'Send Telegram Alert'
-    
-    steps:
-    
     # ------------------------------------------------------
-    # SUCCESS NOTIFICATION
+    # PLAN NOTIFICATIONS
     # ------------------------------------------------------
     - bash: |
-        MESSAGE="✅ <b>ADO Pipeline Success!</b>%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🔢 <b>View Run:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Run $(Build.BuildNumber)</a>"
-        curl -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" \
-          -d chat_id="$(CHAT_ID)" \
-          -d text="$MESSAGE" \
-          -d parse_mode="HTML" \
-          -d disable_web_page_preview="true"
-      
-      displayName: 'Telegram Alert - Success'
-      
-      # Ye task tabhi chalega jab teeno stages (Build, Test, Plan) successfully paas ho jayein
-      condition: and(succeeded('Build'), succeeded('Test'), succeeded('Plan'))
+        MESSAGE="✅ <b>PLAN Stage Success!</b> (Terraform Plan Generated)%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🔢 <b>View Run:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Run $(Build.BuildNumber)</a>"
+        curl -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" -d chat_id="$(CHAT_ID)" -d text="$MESSAGE" -d parse_mode="HTML" -d disable_web_page_preview="true"
+      displayName: 'Alert - Plan Success'
+      condition: succeeded()
 
-    # ------------------------------------------------------
-    # FAILURE NOTIFICATION
-    # ------------------------------------------------------
     - bash: |
-        MESSAGE="❌ <b>ADO Pipeline Failed!</b>%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🚨 <b>Check Logs:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Click Here</a>"
-        curl -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" \
-          -d chat_id="$(CHAT_ID)" \
-          -d text="$MESSAGE" \
-          -d parse_mode="HTML" \
-          -d disable_web_page_preview="true"
-      
-      displayName: 'Telegram Alert - Failed'
-      
-      # Ye task tabhi chalega agar kisi bhi ek stage (Build, Test, ya Plan) mein error aata hai
-      condition: or(failed('Build'), failed('Test'), failed('Plan'))
+        MESSAGE="❌ <b>PLAN Stage Failed!</b>%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🚨 <b>Check Logs:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Click Here</a>"
+        curl -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" -d chat_id="$(CHAT_ID)" -d text="$MESSAGE" -d parse_mode="HTML" -d disable_web_page_preview="true"
+      displayName: 'Alert - Plan Failed'
+      condition: failed()
