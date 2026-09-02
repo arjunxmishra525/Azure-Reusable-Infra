@@ -9,10 +9,7 @@ trigger: none
 # ==========================================================
 
 pool:
-  name: arjun
-  demands:
-  - Agent.Name -equals arjun_agent
-
+  vmImage: 'ubuntu-latest'
 
 # ==========================================================
 # VARIABLES
