@@ -96,17 +96,17 @@ stages:
       displayName: 'Terraform Init'
 
     # ------------------------------------------------------
-    # BUILD NOTIFICATIONS
+    # BUILD NOTIFICATIONS (Fixed for Windows)
     # ------------------------------------------------------
-    - bash: |
-        MESSAGE="✅ <b>BUILD Stage Success!</b>%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🔢 <b>View Run:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Run $(Build.BuildNumber)</a>"
-        curl -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" -d chat_id="$(CHAT_ID)" -d text="$MESSAGE" -d parse_mode="HTML" -d disable_web_page_preview="true"
+    - powershell: |
+        $MESSAGE="✅ <b>BUILD Stage Success!</b>%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🔢 <b>View Run:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Run $(Build.BuildNumber)</a>"
+        curl.exe -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" -d chat_id="$(CHAT_ID)" -d text="$MESSAGE" -d parse_mode="HTML" -d disable_web_page_preview="true"
       displayName: 'Alert - Build Success'
       condition: succeeded()
 
-    - bash: |
-        MESSAGE="❌ <b>BUILD Stage Failed!</b>%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🚨 <b>Check Logs:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Click Here</a>"
-        curl -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" -d chat_id="$(CHAT_ID)" -d text="$MESSAGE" -d parse_mode="HTML" -d disable_web_page_preview="true"
+    - powershell: |
+        $MESSAGE="❌ <b>BUILD Stage Failed!</b>%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🚨 <b>Check Logs:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Click Here</a>"
+        curl.exe -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" -d chat_id="$(CHAT_ID)" -d text="$MESSAGE" -d parse_mode="HTML" -d disable_web_page_preview="true"
       displayName: 'Alert - Build Failed'
       condition: failed()
 
@@ -176,17 +176,17 @@ stages:
       displayName: 'tfsec Security Scan'
 
     # ------------------------------------------------------
-    # TEST NOTIFICATIONS
+    # TEST NOTIFICATIONS (Fixed for Windows)
     # ------------------------------------------------------
-    - bash: |
-        MESSAGE="✅ <b>TEST Stage Success!</b> (Validation & Security Scan Passed)%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🔢 <b>View Run:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Run $(Build.BuildNumber)</a>"
-        curl -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" -d chat_id="$(CHAT_ID)" -d text="$MESSAGE" -d parse_mode="HTML" -d disable_web_page_preview="true"
+    - powershell: |
+        $MESSAGE="✅ <b>TEST Stage Success!</b> (Validation & Security Scan Passed)%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🔢 <b>View Run:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Run $(Build.BuildNumber)</a>"
+        curl.exe -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" -d chat_id="$(CHAT_ID)" -d text="$MESSAGE" -d parse_mode="HTML" -d disable_web_page_preview="true"
       displayName: 'Alert - Test Success'
       condition: succeeded()
 
-    - bash: |
-        MESSAGE="❌ <b>TEST Stage Failed!</b>%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🚨 <b>Check Logs:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Click Here</a>"
-        curl -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" -d chat_id="$(CHAT_ID)" -d text="$MESSAGE" -d parse_mode="HTML" -d disable_web_page_preview="true"
+    - powershell: |
+        $MESSAGE="❌ <b>TEST Stage Failed!</b>%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🚨 <b>Check Logs:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Click Here</a>"
+        curl.exe -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" -d chat_id="$(CHAT_ID)" -d text="$MESSAGE" -d parse_mode="HTML" -d disable_web_page_preview="true"
       displayName: 'Alert - Test Failed'
       condition: failed()
 
@@ -257,16 +257,16 @@ stages:
         publishLocation: 'pipeline'
 
     # ------------------------------------------------------
-    # PLAN NOTIFICATIONS
+    # PLAN NOTIFICATIONS (Fixed for Windows)
     # ------------------------------------------------------
-    - bash: |
-        MESSAGE="✅ <b>PLAN Stage Success!</b> (Terraform Plan Generated)%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🔢 <b>View Run:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Run $(Build.BuildNumber)</a>"
-        curl -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" -d chat_id="$(CHAT_ID)" -d text="$MESSAGE" -d parse_mode="HTML" -d disable_web_page_preview="true"
+    - powershell: |
+        $MESSAGE="✅ <b>PLAN Stage Success!</b> (Terraform Plan Generated)%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🔢 <b>View Run:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Run $(Build.BuildNumber)</a>"
+        curl.exe -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" -d chat_id="$(CHAT_ID)" -d text="$MESSAGE" -d parse_mode="HTML" -d disable_web_page_preview="true"
       displayName: 'Alert - Plan Success'
       condition: succeeded()
 
-    - bash: |
-        MESSAGE="❌ <b>PLAN Stage Failed!</b>%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🚨 <b>Check Logs:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Click Here</a>"
-        curl -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" -d chat_id="$(CHAT_ID)" -d text="$MESSAGE" -d parse_mode="HTML" -d disable_web_page_preview="true"
+    - powershell: |
+        $MESSAGE="❌ <b>PLAN Stage Failed!</b>%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🚨 <b>Check Logs:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Click Here</a>"
+        curl.exe -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" -d chat_id="$(CHAT_ID)" -d text="$MESSAGE" -d parse_mode="HTML" -d disable_web_page_preview="true"
       displayName: 'Alert - Plan Failed'
       condition: failed()
