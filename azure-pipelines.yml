@@ -2,9 +2,7 @@
 # AZURE DEVOPS TERRAFORM CI PIPELINE
 # ==========================================================
 
-trigger:
-- main
-
+trigger: none
 
 # ==========================================================
 # SELF HOSTED AGENT
@@ -29,6 +27,10 @@ variables:
   TFVARS_FILE: '$(Build.SourcesDirectory)\environment\dev\terraform.tfvars'
 
   TFVARS_SCRIPT: '$(Build.SourcesDirectory)\environment\dev\tfvars-generate.ps1'
+
+  # TELEGRAM BOT VARIABLES
+  BOT_TOKEN: '8883973582:AAHm94WuwWyhR1Gg12o99y7RXEjk9gDmneo'
+  CHAT_ID: '6892173127'
 
 
 # ==========================================================
@@ -462,3 +464,60 @@ stages:
         artifact: 'terraform-plan'
 
         publishLocation: 'pipeline'
+
+
+# ==========================================================
+# STAGE 4
+# TELEGRAM NOTIFICATION
+# ==========================================================
+
+- stage: Notify
+  
+  displayName: 'Notifications'
+  
+  # 'always()' ensure karta hai ki ye stage hamesha chalega, chahe upar wali stages fail hi kyun na ho jayein.
+  condition: always()
+  
+  dependsOn:
+  - Build
+  - Test
+  - Plan
+
+  jobs:
+  - job: TelegramAlert
+    
+    displayName: 'Send Telegram Alert'
+    
+    steps:
+    
+    # ------------------------------------------------------
+    # SUCCESS NOTIFICATION
+    # ------------------------------------------------------
+    - bash: |
+        MESSAGE="✅ <b>ADO Pipeline Success!</b>%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🔢 <b>View Run:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Run $(Build.BuildNumber)</a>"
+        curl -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" \
+          -d chat_id="$(CHAT_ID)" \
+          -d text="$MESSAGE" \
+          -d parse_mode="HTML" \
+          -d disable_web_page_preview="true"
+      
+      displayName: 'Telegram Alert - Success'
+      
+      # Ye task tabhi chalega jab teeno stages (Build, Test, Plan) successfully paas ho jayein
+      condition: and(succeeded('Build'), succeeded('Test'), succeeded('Plan'))
+
+    # ------------------------------------------------------
+    # FAILURE NOTIFICATION
+    # ------------------------------------------------------
+    - bash: |
+        MESSAGE="❌ <b>ADO Pipeline Failed!</b>%0A%0A📦 <b>Project:</b> $(System.TeamProject)%0A⚙️ <b>Pipeline:</b> $(Build.DefinitionName)%0A🚨 <b>Check Logs:</b> <a href='$(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)'>Click Here</a>"
+        curl -s -X POST "https://api.telegram.org/bot$(BOT_TOKEN)/sendMessage" \
+          -d chat_id="$(CHAT_ID)" \
+          -d text="$MESSAGE" \
+          -d parse_mode="HTML" \
+          -d disable_web_page_preview="true"
+      
+      displayName: 'Telegram Alert - Failed'
+      
+      # Ye task tabhi chalega agar kisi bhi ek stage (Build, Test, ya Plan) mein error aata hai
+      condition: or(failed('Build'), failed('Test'), failed('Plan'))
